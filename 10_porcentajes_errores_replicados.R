@@ -1,32 +1,32 @@
 porcentajes_replicados <-
   function(tabla, grupo, prefijo, peso_combinadonado){ #Tabla debe ser una lista, los demas texto
-
+    
     # Cambiamos NA a texto para poder agrupar datos perdidos
     tabla[grupo][is.na(tabla[grupo])] <- "Perdidos"
-
+    
     # Grupo como factor
     tabla[[grupo]] <- as.factor(tabla[[grupo]])
-
+    
     # Vector con nombres de variables de todos los pesos replicados y peso combinado
     var_nombres <- append(peso_combinado, grep(x = names(tabla), prefijo, value = T))
-
+    
     # Vector con sumatoria de pesos replicados y peso combinado de TODO
-    var_proporciontoria <- as.vector(sapply(tabla[var_nombres], function(x) sum(x, na.rm = T)))
-
+    var_sumatoria <- as.vector(sapply(tabla[var_nombres], function(x) sum(x, na.rm = T)))
+    
     # La tabla es agrupada por GRUPO
     var_split <- split(tabla, tabla[[grupo]])
-
+    
     # Vector con la sumatoria de pesos replicados y peso combinado por GRUPO
-    var_proporciontoria_grupos <- lapply(var_split, function(x){
+    var_sumatoria_grupos <- lapply(var_split, function(x){
       sapply(x[, var_nombres], sum, na.rm = T)
     })
-
+    
     # Obtenemos proporcion, sumatoria de GRUPO entre sumatoria de TODO
-    var_proporcion <- lapply(var_proporciontoria_grupos, function(x) {
-      x / var_proporciontoria
+    var_proporcion <- lapply(var_sumatoria_grupos, function(x) {
+      x / var_sumatoria
     }
     )
-
+    
     # Tabla resumen
     resumen_general <- lapply(
       var_proporcion, function(x){
@@ -50,8 +50,8 @@ porcentajes_replicados <-
         round(resumen * 100, 2)
       }
     )
-
+    
     # Mejor presentacion para Tabla resumen
     do.call(what = rbind, resumen_general)
-
+    
   }
