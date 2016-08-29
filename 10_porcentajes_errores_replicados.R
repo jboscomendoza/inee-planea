@@ -1,43 +1,57 @@
 porcentajes_replicados <-
-    function(tabla, grupo, prefijo, peso_combi){ #Tabla debe ser una lista, los demás texto
+  function(tabla, grupo, prefijo, peso_combinadonado){ #Tabla debe ser una lista, los demas texto
 
-        tabla[grupo][is.na(tabla[grupo])] <- "Perdido" # Etiqueta NA para poder agrupar
+    # Cambiamos NA a texto para poder agrupar datos perdidos
+    tabla[grupo][is.na(tabla[grupo])] <- "Perdidos"
 
-        total_parcial <- sum(tabla[[peso_combi]], na.rm = T) # Suma de pesos combinados
+    # Grupo como factor
+    tabla[[grupo]] <- as.factor(tabla[[grupo]])
 
-        var_nombres <- append(peso_combi, grep(x = names(tabla), prefijo, value = T)) # Vector con nombres de variables de pesos replicados
+    # Vector con nombres de variables de todos los pesos replicados y peso combinado
+    var_nombres <- append(peso_combinado, grep(x = names(tabla), prefijo, value = T))
 
-        var_pesos <- as.vector(sapply(tabla[var_nombres], sum)) # Vector con pesos replicados
+    # Vector con sumatoria de pesos replicados y peso combinado de TODO
+    var_proporciontoria <- as.vector(sapply(tabla[var_nombres], function(x) sum(x, na.rm = T)))
 
-        var_split <- split(tabla, tabla[[grupo]]) # Lista con grupos
+    # La tabla es agrupada por GRUPO
+    var_split <- split(tabla, tabla[[grupo]])
 
-        var_values <- lapply(var_split, function(x){
-            x[, grupo] <- 1 # Cabia valores a 1 para poder estimar la proporción
-            (x[, grupo] * x[, var_nombres]) # Multiplica por todos los pesos
-        })
+    # Vector con la sumatoria de pesos replicados y peso combinado por GRUPO
+    var_proporciontoria_grupos <- lapply(var_split, function(x){
+      sapply(x[, var_nombres], sum, na.rm = T)
+    })
 
-        var_suma <- lapply(var_values, function(x) { # Obtiene
-            as.vector(
-                sapply(x, function(x) {
-                    sum(x)/total_parcial #Esto hay que cambiarlo !!! Debe dividir entre la suma de cada peso replicado, no del peso combinado
-                })
-            )}
-        )
-
-        lapply(
-            var_suma, function(x){
-                perc <- x[1] # Proporcion
-                diferencia <- sqrt( # Calculo del Error estandar
-                    sum((x[1] - x[2:length(var_nombres)])^2)/20 # x[1] es con peso combinado, de x[2] en adelante con los combinados
-                )
-                resumen <- data.frame( #Tabla resumen
-                    Porcentaje = perc,
-                    EE = diferencia,
-                    Int_Superior = perc + (diferencia*1.96), # Intervalos de confianza
-                    Int_Inferior = perc - (diferencia*1.96)
-                )
-                round(resumen * 100, 2) # A porcentaje, dos decimales
-            }
-        )
-
+    # Obtenemos proporcion, sumatoria de GRUPO entre sumatoria de TODO
+    var_proporcion <- lapply(var_proporciontoria_grupos, function(x) {
+      x / var_proporciontoria
     }
+    )
+
+    # Tabla resumen
+    resumen_general <- lapply(
+      var_proporcion, function(x){
+        # La proporcion a partir del peso combinado es la que se reporta
+        prop <- x[1]
+        # Calculo del error estandar
+        error_estandar <- sqrt(
+          # x[1] es con peso combinado, de x[2] en adelante con los combinados
+          # Todas las diferencias de x[1] con x[2] se elevan al cuadrado, divide
+          # entre 20 y obtiene raiz cuadrada
+          sum((x[1] - x[2:length(var_nombres)])^2)/20
+        )
+        #  Resumen por grupo
+        resumen <- data.frame(
+          Porcentaje = prop,
+          EE = error_estandar,
+          Int_Superior = prop + (error_estandar * 1.96), # Intervalos de confianza
+          Int_Inferior = prop - (error_estandar * 1.96)
+        )
+        # Las proporciones se convierten a porcentaje con dos cifras decimales
+        round(resumen * 100, 2)
+      }
+    )
+
+    # Mejor presentacion para Tabla resumen
+    do.call(what = rbind, resumen_general)
+
+  }
